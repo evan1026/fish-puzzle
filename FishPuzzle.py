@@ -42,7 +42,7 @@ def get_column_string(board, i):
 def get_row_string(board, i):
     return ''.join(board[i])
 
-def is_board_valid(board, pattern, rows=None, cols=None):
+def is_board_valid(board, pattern, rows, cols):
     if (rows is None or cols is None):
         for i in range(3*3):
             if not pattern.match(get_row_string(board, i)):
@@ -59,7 +59,7 @@ def is_board_valid(board, pattern, rows=None, cols=None):
     return True
 
 def make_board_from_piece_list(piece_list):
-    new_board = copy.deepcopy(board)
+    new_board = [[" " for x in range(3*3)] for x in range(3*3)]
     for i in range(9):
         x_off = int(i/3) * 3
         y_off = (i % 3) * 3
@@ -71,7 +71,7 @@ def make_board_from_piece_list(piece_list):
     return new_board
 
 def make_and_test_board(piece_list):
-    new_board = copy.deepcopy(board)
+    new_board = [[" " for x in range(3*3)] for x in range(3*3)]
     for i in range(9):
         x_off = int(i/3) * 3
         y_off = (i % 3) * 3
@@ -80,7 +80,7 @@ def make_and_test_board(piece_list):
         new_board[x_off + 2][y_off + 1] = piece_list[i][2][1]
         new_board[x_off + 1][y_off + 2] = piece_list[i][1][2]
         
-        if i > 1 and not is_board_valid(board, pattern, [x_off + 0, x_off + 1, x_off + 2], [y_off + 0, y_off + 1, y_off + 2]):
+        if i > 1 and not is_board_valid(board, pattern, [y_off + 0, y_off + 1, y_off + 2], [x_off + 0, x_off + 1, x_off + 2]):
             return None
     
     return new_board
@@ -123,7 +123,7 @@ if __name__ == '__main__':
 
     print("About to try {} solutions in {} tasks!".format(total_solns, factorial(9)))
 
-    if False:
+    if True:
         perms = itertools.permutations(pieces)
         perm = next(perms)
         print("----------------------")
@@ -135,7 +135,7 @@ if __name__ == '__main__':
         board = make_board_from_piece_list(piece_list)
         print(board)
         print("----------------------")
-        print(is_board_valid(board, pattern))
+        print(is_board_valid(board, pattern, [i for i in range(9)], [i for i in range(9)]))
 
     if True:
         results = Parallel(n_jobs=-1, verbose=10)(delayed(get_valid_boards_from_perm)(perm) for perm in itertools.permutations(pieces))
@@ -147,5 +147,5 @@ if __name__ == '__main__':
         for perm in itertools.permutations(pieces):
             i += 1
             get_valid_boards_from_perm(perm)
-            if i == 25:
+            if i == 1:
                 exit(0)
