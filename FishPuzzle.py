@@ -3,11 +3,14 @@ from math import factorial
 import re
 import copy
 from joblib import Parallel, delayed
+from numba import jit
 
 PIECE_FILE_PATH = "pieces.txt"
 pieces = [] # will be a list of lists of configurations for each piece
-regex = r'^( *)(((\w)1(?:\4)2|(\w)2(?:\5)1|\w1|\w2)($|\s))+$'
+regex = r'^(\s*)(((\w)1(?:\4)2|(\w)2(?:\5)1|\w1|\w2)($|\s+))*$'
 pattern = re.compile(regex)
+board = [[" " for x in range(3*3)] for x in range(3*3)]
+blank_piece = [[" " for x in range(3)] for x in range(3)]
 
 def rotate_piece(piece, rot):
     rot = rot % 4
@@ -27,7 +30,8 @@ def rotate_piece(piece, rot):
         new_piece[1][0] = piece[0][1]
         new_piece[2][1] = piece[1][0]
         new_piece[1][2] = piece[2][1]
-    
+    elif rot == 0:
+        new_piece = copy.deepcopy(piece)
     return new_piece
 
 
@@ -38,32 +42,48 @@ def get_column_string(board, i):
 def get_row_string(board, i):
     return ''.join(board[i])
 
-
-def is_board_valid(board, pattern):
-    for i in range(3*9):
-        if not pattern.match(get_row_string(board, i)):
-            return False
-        if not pattern.match(get_column_string(board,i)):
-            return False
-    
+def is_board_valid(board, pattern, rows=None, cols=None):
+    if (rows is None or cols is None):
+        for i in range(3*3):
+            if not pattern.match(get_row_string(board, i)):
+                return False
+            if not pattern.match(get_column_string(board,i)):
+                return False
+    else:
+        for i in rows:
+            if not pattern.match(get_row_string(board, i)):
+                return False
+        for i in cols:
+            if not pattern.match(get_column_string(board,i)):
+                return False
     return True
 
 def make_board_from_piece_list(piece_list):
-    board = [[0 for x in range(3*3)] for x in range(3*3)]
+    new_board = copy.deepcopy(board)
     for i in range(9):
         x_off = int(i/3) * 3
         y_off = (i % 3) * 3
-        board[x_off + 0][y_off + 0] = piece_list[i][0][0]
-        board[x_off + 1][y_off + 0] = piece_list[i][1][0]
-        board[x_off + 2][y_off + 0] = piece_list[i][2][0]
-        board[x_off + 0][y_off + 1] = piece_list[i][0][1]
-        board[x_off + 1][y_off + 1] = piece_list[i][1][1]
-        board[x_off + 2][y_off + 1] = piece_list[i][2][1]
-        board[x_off + 0][y_off + 2] = piece_list[i][0][2]
-        board[x_off + 1][y_off + 2] = piece_list[i][1][2]
-        board[x_off + 2][y_off + 2] = piece_list[i][2][2]
+        new_board[x_off + 1][y_off + 0] = piece_list[i][1][0]
+        new_board[x_off + 0][y_off + 1] = piece_list[i][0][1]
+        new_board[x_off + 2][y_off + 1] = piece_list[i][2][1]
+        new_board[x_off + 1][y_off + 2] = piece_list[i][1][2]
     
-    return board
+    return new_board
+
+def make_and_test_board(piece_list):
+    new_board = copy.deepcopy(board)
+    for i in range(9):
+        x_off = int(i/3) * 3
+        y_off = (i % 3) * 3
+        new_board[x_off + 1][y_off + 0] = piece_list[i][1][0]
+        new_board[x_off + 0][y_off + 1] = piece_list[i][0][1]
+        new_board[x_off + 2][y_off + 1] = piece_list[i][2][1]
+        new_board[x_off + 1][y_off + 2] = piece_list[i][1][2]
+        
+        if i > 1 and not is_board_valid(board, pattern, [x_off + 0, x_off + 1, x_off + 2], [y_off + 0, y_off + 1, y_off + 2]):
+            return None
+    
+    return new_board
 
 def generate_rotations_for_perm(perm):
     rotations = []
@@ -75,30 +95,22 @@ def generate_rotations_for_perm(perm):
 def get_valid_boards_from_perm(perm):
     valid_boards = []
     for piece_list in generate_rotations_for_perm(perm):
-        #solns_tried += 1
-        board = make_board_from_piece_list(piece_list)
-        if (is_board_valid(board, pattern)):
+        board = make_and_test_board(piece_list)
+        if (board is not None):
             valid_boards.append(board)
-        #if (solns_tried % 10000 == 0):
-        #    print(str((solns_tried / total_solns) * 100) + "% ...")
     return valid_boards
 
 with open(PIECE_FILE_PATH, 'r') as file:
     for line in file:
         line = line.strip()
         print(line)
-        piece = [[0 for x in range(3)] for x in range(3)]
+        piece = copy.deepcopy(blank_piece)
         elems = line.split(" ")
         print(elems)
-        piece[0][0] = " "
         piece[0][1] = elems[0]
-        piece[0][2] = " "
-        piece[1][0] = elems[1]
-        piece[1][1] = " "
-        piece[1][2] = elems[2]
-        piece[2][0] = " "
-        piece[2][1] = elems[3]
-        piece[2][2] = " "
+        piece[1][2] = elems[1]
+        piece[2][1] = elems[2]
+        piece[1][0] = elems[3]
         pieces.append(piece)
 
 for piece in pieces:
@@ -126,4 +138,14 @@ if __name__ == '__main__':
         print(is_board_valid(board, pattern))
 
     if True:
-        Parallel(n_jobs=-1, verbose=10)(delayed(get_valid_boards_from_perm)(perm) for perm in itertools.permutations(pieces))
+        results = Parallel(n_jobs=-1, verbose=10)(delayed(get_valid_boards_from_perm)(perm) for perm in itertools.permutations(pieces))
+        filtered_results = list(filter(lambda l: len(l) > 0, results))
+        print(filtered_results)
+    
+    if False:
+        i = 0
+        for perm in itertools.permutations(pieces):
+            i += 1
+            get_valid_boards_from_perm(perm)
+            if i == 25:
+                exit(0)
