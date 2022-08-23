@@ -3,14 +3,13 @@ from math import factorial
 import re
 import copy
 from joblib import Parallel, delayed
-from numba import jit
 
 PIECE_FILE_PATH = "pieces.txt"
 pieces = [] # will be a list of lists of configurations for each piece
 regex = r'^(\s*)(((\w)1(?:\4)2|(\w)2(?:\5)1|\w1|\w2)($|\s+))*$'
 pattern = re.compile(regex)
-board = [[" " for x in range(3*3)] for x in range(3*3)]
-blank_piece = [[" " for x in range(3)] for x in range(3)]
+blank_board = [["  " for x in range(3*3)] for x in range(3*3)]
+blank_piece = [["  " for x in range(3)] for x in range(3)]
 
 def rotate_piece(piece, rot):
     rot = rot % 4
@@ -34,10 +33,12 @@ def rotate_piece(piece, rot):
         new_piece = copy.deepcopy(piece)
     return new_piece
 
+def print_board(board):
+    for i in range(9):
+        print(get_row_string(board, i))
 
 def get_column_string(board, i):
     return ''.join([column[i] for column in board])
-
 
 def get_row_string(board, i):
     return ''.join(board[i])
@@ -59,7 +60,7 @@ def is_board_valid(board, pattern, rows, cols):
     return True
 
 def make_board_from_piece_list(piece_list):
-    new_board = [[" " for x in range(3*3)] for x in range(3*3)]
+    new_board = [["  " for x in range(3*3)] for x in range(3*3)]
     for i in range(9):
         x_off = int(i/3) * 3
         y_off = (i % 3) * 3
@@ -71,7 +72,7 @@ def make_board_from_piece_list(piece_list):
     return new_board
 
 def make_and_test_board(piece_list):
-    new_board = [[" " for x in range(3*3)] for x in range(3*3)]
+    new_board = [["  " for x in range(3*3)] for x in range(3*3)]
     for i in range(9):
         x_off = int(i/3) * 3
         y_off = (i % 3) * 3
@@ -80,7 +81,7 @@ def make_and_test_board(piece_list):
         new_board[x_off + 2][y_off + 1] = piece_list[i][2][1]
         new_board[x_off + 1][y_off + 2] = piece_list[i][1][2]
         
-        if i > 1 and not is_board_valid(board, pattern, [y_off + 0, y_off + 1, y_off + 2], [x_off + 0, x_off + 1, x_off + 2]):
+        if i > 1 and not is_board_valid(new_board, pattern, [x_off + 0, x_off + 1, x_off + 2], [y_off + 0, y_off + 1, y_off + 2]):
             return None
     
     return new_board
@@ -123,7 +124,7 @@ if __name__ == '__main__':
 
     print("About to try {} solutions in {} tasks!".format(total_solns, factorial(9)))
 
-    if True:
+    if False:
         perms = itertools.permutations(pieces)
         perm = next(perms)
         print("----------------------")
@@ -136,6 +137,11 @@ if __name__ == '__main__':
         print(board)
         print("----------------------")
         print(is_board_valid(board, pattern, [i for i in range(9)], [i for i in range(9)]))
+        print("----------------------")
+        boards = get_valid_boards_from_perm(perm)
+        print(len(boards))
+        print("----------------------")
+        print_board(boards[0])
 
     if True:
         results = Parallel(n_jobs=-1, verbose=10)(delayed(get_valid_boards_from_perm)(perm) for perm in itertools.permutations(pieces))
@@ -146,6 +152,6 @@ if __name__ == '__main__':
         i = 0
         for perm in itertools.permutations(pieces):
             i += 1
-            get_valid_boards_from_perm(perm)
+            print(get_valid_boards_from_perm(perm))
             if i == 1:
-                exit(0)
+                break
